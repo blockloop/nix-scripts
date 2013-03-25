@@ -1,0 +1,33 @@
+#!/bin/bash
+#
+# Dump m4a to wav (first step in conversion)
+
+y=`pwd`
+cd "$1"
+
+echo changing directory to $1
+sleep 15
+echo converting the damned .m4as to mp3s
+for i in *.m4a
+do
+mplayer -ao pcm "$i" -aofile "$i.wav"
+done
+
+echo converting the damned .wavs to mp3s
+for i in *.wav
+do
+lame -h -b 192 "$i" "$i.mp3"
+done
+
+echo renameding the damned mp3s
+for i in *.mp3
+do
+x=`echo "$i"|sed -e 's/m4a.wav.mp3/mp3/'`
+mv "$i" "$x"
+done
+
+rm *.wav
+rm *.m4a
+cd $y
+
+echo changing back to $y

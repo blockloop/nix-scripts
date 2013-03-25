@@ -1,0 +1,5 @@
+wget \
+     --recursive \
+     --page-requisites \
+     --no-parent \
+     $1

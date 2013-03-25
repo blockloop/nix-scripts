@@ -1,0 +1,84 @@
+#! /bin/sh
+### BEGIN SCRIPT INFO
+# Provides: Sick Beard Start/Stop/Update
+# Copied by Ainer.org from http://forums.sabnzbd.org/index.php?topic=2013.0
+# Written by Tret on April 17, 2009
+# Fix added by Tophicles on July 7, 2010 
+# Modified by Ainer on various dates in 2010
+### END SCRIPT INFO
+
+#Required & Must Be Changed
+USER="brett" #Set Ubuntu (or other GNU/Linux) username here.
+
+#Required but Defaults Provided (only change if you know you need to).
+HOST="127.0.0.1" #Set Sick Beard address here.
+PORT="8081" #Set Sick Beard port here.
+BRANCH="master" #Set Sick beard branch to download here.
+
+#Required -- the directory where your SickBeard.py
+SB_PATH="/usr/share/SickBeard"
+
+#Optional (Unneeded unless you have added a Username and Password to Sick Beard).
+SBUSR="" #Set Sick Beard Username (if you use one) here.
+SBPWD="" #Set Sick Beard Password (if you use one) here.
+
+#Script -- No changes needed below.
+case "$1" in
+start)
+#Start Sick Beard.
+cd /home/$USER/.sickbeard
+echo "Starting Sick Beard"
+sudo -u $USER -EH nohup python $SB_PATH/SickBeard.py --quiet &
+;;
+stop)
+#Shutdown Sick Beard.
+echo "Stopping Sick Beard"
+wget -q --user=$SBUSR --password=$SBPWD "http://$HOST:$PORT/home/shutdown/"
+sleep 6s
+;;
+update)
+#Start update process.
+# Shutdown Sick Beard.
+echo "Stopping Sick Beard"
+wget -q --user=$SBUSR --password=$SBPWD "http://$HOST:$PORT/home/shutdown/"
+sleep 6s
+
+# Get source and untar it.
+echo "Downloading Sick Beard"
+cd $SB_PATH
+wget -q http://github.com/midgetspy/Sick-Beard/tarball/$BRANCH
+tar zxf midgetspy-Sick-Beard*
+rm midgetspy-Sick-Beard*.tar.gz
+
+# Make Backups, copy essential files, and install new version.
+echo "Backing-up Sick Beard"
+cp -ru .sickbeard_backup .sickbeard_backup_old
+cp -ru .sickbeard .sickbeard_backup
+mv .sickbeard/sickbeard.db midgetspy-Sick-Beard-*/
+mv .sickbeard/config.ini midgetspy-Sick-Beard-*/
+mv .sickbeard/autoProcessTV/autoProcessTV.cfg midgetspy-Sick-Beard-*/autoProcessTV/
+rm -rf .sickbeard
+echo "Updating Sick Beard"
+mv midgetspy-Sick-Beard-* .sickbeard
+
+# Restart Sick Beard quietly and send output To nohup.out.
+echo "Restarting Sick Beard"
+cd /home/$USER/.sickbeard
+sudo -u $USER -EH nohup python /media/Stuff/nzb/sickbeard/SickBeard.py --quiet &
+;;
+status)
+result=$(ps aux | grep -i sickbeard | grep -i python | wc -l)
+if [ ${result} -gt 0 ] ; then
+   echo "Sick Beard is Running."
+else
+   echo "Sick Beard isn't running!"
+fi
+;;
+
+# Show Usages
+*)
+echo "Usage: $0 {start|stop|status|update}"
+exit 1
+esac
+
+exit 0

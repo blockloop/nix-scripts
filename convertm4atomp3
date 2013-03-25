@@ -1,0 +1,34 @@
+#!/bin/bash
+
+bitrates="64, 80, 96, 112, 128, 144, 160, 192, 224, 256, 320,"
+
+if [ ! -d "$1" ]; then
+    echo "$1 is not a directory";
+    exit;
+fi
+
+# WORK IN PROGRESS
+#if [ "$bitrates" -ne *$2* ]; then
+#    echo "$2 is not an acceptable bitrate"
+#    echo "use one of $bitrates"
+#    exit;
+#fi
+
+cd $1
+
+if [ ! $(ls -1 | grep -i .m4a$ | wc -l) -gt 0 ]; then
+    echo "No m4a files in $1";
+    exit;
+fi
+
+for i in *.m4a; do
+out=$(ls "$i" | sed -e 's/.m4a//g')
+faad -w "$i" > "$out.wav"
+done
+
+for i in *.wav; do
+out=$(ls "$i" | sed -e 's/.wav//g')
+lame -h -b 320 "$i" "$out.mp3"
+done
+
+rm *.wav

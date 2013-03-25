@@ -1,0 +1,87 @@
+#! /bin/sh
+### BEGIN SCRIPT INFO
+# Provides: CouchPotato Start/Stop/Status/Update
+# Copied by bmjones.com from http://forums.sabnzbd.org/index.php?topic=2013.0
+# Coppied from the Sick Beard script for CouchPotato by Brett Jones
+# Written by Tret on April 17, 2009
+# Fix added by Tophicles on July 7, 2010 
+# Modified by Ainer on various dates in 2010
+### END SCRIPT INFO
+
+#Required & Must Be Changed
+USER="brett" #Set Ubuntu (or other GNU/Linux) username here.
+
+#Required but Defaults Provided (only change if you know you need to).
+HOST="127.0.0.1" #Set CouchPotato address here.
+PORT="5000" #Set CouchPotato port here.
+
+#Required -- the directory where your CouchPotato.py
+CP_PATH="/usr/share/CouchPotato"
+
+#Optional (Unneeded unless you have added a Username and Password to CouchPotato).
+CPUSR="" #Set CouchPotato Username (if you use one) here.
+CPPWD="" #Set CouchPotato Password (if you use one) here.
+
+#Script -- No changes needed below.
+case "$1" in
+start)
+#Start CouchPotato.
+cd /home/$USER/.couchpotato
+echo "Starting CouchPotato"
+sudo -u $USER -EH nohup python $CP_PATH/CouchPotato.py --quiet &
+;;
+stop)
+#Shutdown CouchPotato.
+echo "Stopping CouchPotato"
+wget -q --user=$CPUSR --password=$CPPWD "http://$HOST:$PORT/home/shutdown/"
+sleep 6s
+;;
+update--not_working)
+#Start update process.
+# Shutdown CouchPotato.
+echo "Stopping CouchPotato"
+wget -q --user=$CPUSR --password=$CPPWD "http://$HOST:$PORT/home/shutdown/"
+sleep 6s
+
+# Get source and untar it.
+echo "Downloading CouchPotato"
+cd $CP_PATH
+wget -q --no-check-certificate http://github.com/RuudBurger/CouchPotato/tarball/master -O couchpotato
+tar xzf couchpotato
+cd RuudBurger*
+cp * -R $CP_PATH
+
+# Make Backups, copy essential files, and install new version.
+echo "Backing-up CouchPotato"
+cp -ru .couchpotato .couchpotato_backup
+mv .couchpotato/couchpotato.db midgetspy-Sick-Beard-*/
+mv .couchpotato/config.ini midgetspy-Sick-Beard-*/
+mv .couchpotato/autoProcessTV/autoProcessTV.cfg midgetspy-Sick-Beard-*/autoProcessTV/
+rm -rf .couchpotato
+echo "Updating CouchPotato"
+cd RuudBurger*
+cp * -R $CP_PATH
+rm -rf $CP_PATH/*
+mv * $CP_PATH
+
+# Restart CouchPotato quietly and send output To nohup.out.
+echo "Restarting CouchPotato"
+cd /home/$USER/.couchpotato
+sudo -u $USER -EH nohup python /media/Stuff/nzb/couchpotato/CouchPotato.py --quiet &
+;;
+status)
+result=$(ps aux | grep -i couchpotato | grep -i python | wc -l)
+if [ ${result} -gt 0 ] ; then
+   echo "CouchPotato is Running."
+else
+   echo "CouchPotato isn't running!"
+fi
+;;
+
+# Show Usages
+*)
+echo "Usage: $0 {start|stop|status}"
+exit 1
+esac
+
+exit 0

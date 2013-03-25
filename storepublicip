@@ -1,0 +1,15 @@
+#!/bin/bash
+# relies on sendgmail
+
+user=jones
+newIp=$(wget http://automation.whatismyip.com/n09230945.asp -q -O -)
+oldIp=$(cat /home/$user/Documents/myip)
+
+if [ -z "$newIp" ]; then
+   echo "No IP retrieved from whatismyip.com. Ignoring."
+elif [[ -z "$oldIp" || "$newIp" != "$oldIp" ]]; then
+   sendgmail "[IMPORTANT] Server IP Address has changed" "Server IP Address has changed from $oldIp to $newIp" dumbestcrayon@gmail.com
+   echo "$newIp" > /home/$user/Documents/myip
+else
+   echo "IP has not changed"
+fi

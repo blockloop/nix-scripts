@@ -1,0 +1,80 @@
+#!/bin/bash
+# Example: ./test original_file destination_file
+usage()
+{
+   echo "Usage: $0 Movie.Title"
+   echo "Example: $0 Avatar\(2009\)"
+   exit 1;
+}
+
+echoerr() { echo "$@" 1>&2; }
+
+test "$1" != "" || usage
+
+EMAIL=bjones027@gmail.com
+WORKING_DIR=/media/Stuff/.ripbluray/
+MOVIE_DIR=/media/Stuff/Movies/
+START=$(date)
+DISK_DRIVE=/dev/sr0
+
+echo "Process started at $START"
+
+# If the working directory doesn't exist, create it
+if [ ! -d "$WORKING_DIR" ]; then
+   echo "Creating directory $WORKING_DIR";
+   mkdir -p $WORKING_DIR
+fi
+
+# Delete pre-existing files
+echo "Cleaning directory $WORKING_DIR";
+rm -rf $WORKING_DIR*
+
+# Rip the blu-ray to the working directory
+/usr/bin/makemkvcon mkv dev:"$DISK_DRIVE" 0 $WORKING_DIR
+
+RAW_MKV_FILE=$(find $WORKING_DIR -type f -name *.mkv)
+
+echo "MakeMKV exited with status $? at $(date)"
+
+if [ ! $? -eq 0 ]; then
+  echoerr "MakeMKV failed. Exiting..."
+  if [[ $* != *--no-mail* ]]; then
+    echo "Sending email..."
+    sendgmail "Ripping $1 FAILED on MakeMKV" "$EMAIL"
+  fi
+  exit 1
+fi
+
+if [ "$RAW_MKV_FILE" == "" ]; then
+  echoerr  "MakeMKV didn't produce a file. Exiting..."
+  if [[ $* != *--no-mail* ]]; then
+    echo "Sending email..."
+    sendgmail "Ripping $1 FAILED on MakeMKV" "$EMAIL"
+  fi
+  exit 1
+fi
+
+echo "MakeMKV created $RAW_MKV_FILE"
+echo "Compressing $1. This could take a while..."
+
+# Compress the blu-ray and save it to the Movies director
+HandBrakeCLI --min-duration 240 --main-feature --arate 48 --aencoder copy:dts,copy:ac3 --mixdown 6ch --encoder x264 --crop 0:0:0:0 --rate 23.976 --vb 6957 --ab 1510 --format mkv --input $RAW_MKV_FILE --output $MOVIE_DIR$1.mkv
+
+if [ ! $? -eq 0 ]; then
+  echoerr "HandBrake FAILED!"
+  if [[ $* != *--no-mail* ]]; then
+    echo "Sending email..."
+    sendgmail "Ripping $1 FAILED on HandBrake" "$EMAIL"
+  fi
+  exit 1
+fi
+
+STOP=$(date)
+
+if [[ $* != *--no-mail* ]]; then
+    echo "Sending email..."
+    sendgmail "$0 Finished ripping $1" "Process started at $START and ended at $STOP ." "$EMAIL"
+fi
+
+echo "Process successfully completed at $STOP"
+echo
