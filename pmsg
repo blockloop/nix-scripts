@@ -8,24 +8,23 @@ require 'awesome_print'
 
 class PushoverMsg < Thor
 
-  PRIORITY = OpenStruct.new(:low => -1, :normal => 0, :high => 1)
+  PRIORITY = { :low => -1, :normal => 0, :high => 1 }
   
   desc "notify", "send a pushover message"
   method_option :message, :type => :string, :aliases => '-m', :required => true, :desc => "Send a pushover message"
   method_option :title, :type => :string, :aliases => '-t', :required => false, :desc => "The title of the message"
   method_option :token, :type => :string, :aliases => '-n', :required => ENV['PUSHOVER_TOKEN'].nil?, :desc => "Pushover Token to use (uses ENV['PUSHOVER_TOKEN'] or this)"
   method_option :user, :type => :string, :aliases => '-u', :required => ENV['PUSHOVER_USER'].nil?, :desc => "Pushover user to send to (uses ENV['PUSHOVER_USER'] or this)"
-  method_option :priority, :type => :string, :aliases => '-p', :required => false, :desc => PRIORITY.marshal_dump.keys.to_s
+  method_option :priority, :type => :string, :aliases => '-p', :required => false, :desc => PRIORITY.keys.to_s
   def notify
     @token = options.token || ENV['PUSHOVER_TOKEN']
     @user = options.user || ENV['PUSHOVER_USER']
     @client = Rushover::Client.new(@token)
     validate_user
-    priority = validate_priority(options.priority) || PRIORITY.normal
-    resp = @client.notify(@user, options.message, :priority => priority, :title => options.title)
+    priority = validate_priority(options.priority)
+    resp = @client.notify(@user, options.message, :priority => PRIORITY[priority.to_sym], :title => options.title)
     if resp.ok?
-      typ = PRIORITY.marshal_dump.key(priority).upcase
-      puts "(#{typ}) message sent: #{options.message}" 
+      puts "(#{priority.upcase}) message sent: #{options.message}" 
     else
       puts "ERROR sending: #{options.message}" 
       ap :response => resp, :options => options
@@ -38,7 +37,7 @@ class PushoverMsg < Thor
     end
 
     def validate_priority priority
-      PRIORITY.marshal_dump.keys.include?(priority) ? priority : false
+      PRIORITY[priority.to_sym].nil? ? PRIORITY.normal : priority
     end
   end
 
