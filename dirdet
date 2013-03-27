@@ -1,0 +1,3 @@
+#!/usr/bin/perl 
+
+%h=map{/.\s/;99**(ord$&&7)-$`,$_}`du -smh *`;die@h{sort%h}
