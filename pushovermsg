@@ -1,0 +1,17 @@
+#!/bin/env ruby
+
+require "net/https"
+
+message = 'hello world' 
+
+url = URI.parse("https://api.pushover.net/1/messages")
+req = Net::HTTP::Post.new(url.path)
+req.set_form_data({
+  :token => ENV['PUSHOVER_TOKEN'],
+  :user => ENV['PUSHOVER_USER'],
+  :message => message,
+})
+res = Net::HTTP.new(url.host, url.port)
+res.use_ssl = true
+res.verify_mode = OpenSSL::SSL::VERIFY_PEER
+res.start { |http| http.request(req) }
