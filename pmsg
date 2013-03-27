@@ -8,7 +8,7 @@ require 'awesome_print'
 
 class PushoverMsg < Thor
 
-  PRIORITY = { :low => -1, :normal => 0, :high => 1 }
+  PRIORITY = { 'low' => -1, 'normal' => 0, 'high' => 1 }
   
   desc "notify", "send a pushover message"
   method_option :message, :type => :string, :aliases => '-m', :required => true, :desc => "Send a pushover message"
@@ -22,7 +22,7 @@ class PushoverMsg < Thor
     @client = Rushover::Client.new(@token)
     validate_user
     priority = validate_priority(options.priority)
-    resp = @client.notify(@user, options.message, :priority => PRIORITY[priority.to_sym], :title => options.title)
+    resp = @client.notify(@user, options.message, :priority => PRIORITY[priority], :title => options.title)
     if resp.ok?
       puts "(#{priority.upcase}) message sent: #{options.message}" 
     else
@@ -37,7 +37,7 @@ class PushoverMsg < Thor
     end
 
     def validate_priority priority
-      PRIORITY[priority.to_sym].nil? ? PRIORITY.normal : priority
+      PRIORITY[priority].nil? ? PRIORITY['normal'] : priority
     end
   end
 
