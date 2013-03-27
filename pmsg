@@ -8,7 +8,7 @@ require 'awesome_print'
 
 class PushoverMsg < Thor
 
-  PRIORITY = OpenStruct.new(:high => 2, :normal => 1)
+  PRIORITY = OpenStruct.new(:low => -1, :normal => 0, :high => 1)
   
   desc "notify", "send a pushover message"
   method_option :message, :type => :string, :aliases => '-m', :required => true, :desc => "Send a pushover message"
