@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+
+## Doesn't only do new episodes!
+
+require 'httparty'
+require 'ostruct'
+load 'pmsg'
+
+url = "http://bmjones.com:8082/api/#{ENV['SICKBEARD_API_TOKEN']}/?cmd=future&sort=date&type=today"
+query = HTTParty.get(url).parsed_response
+data = query['data']
+
+if query['result'] == "success"
+  unless data['today'] and data['today'].any?
+    puts "No new episodes. Exiting..."
+    exit 0 
+  end
+
+  mapped = data['today'].map { |show| "- #{show['show_name']} S#{show['season']}E#{show['episode']}" }
+  message = mapped.join("\n")
+else
+  message = "tvpushover failed with message: #{data.message}"
+  exit 1
+end
+
+
+PushoverMsg.new.notify("New shows today", message)

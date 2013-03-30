@@ -16,17 +16,20 @@ class PushoverMsg < Thor
   method_option :token, :type => :string, :aliases => '-n', :required => ENV['PUSHOVER_TOKEN'].nil?, :desc => "Pushover Token to use (uses ENV['PUSHOVER_TOKEN'] or this)"
   method_option :user, :type => :string, :aliases => '-u', :required => ENV['PUSHOVER_USER'].nil?, :desc => "Pushover user to send to (uses ENV['PUSHOVER_USER'] or this)"
   method_option :priority, :type => :string, :aliases => '-p', :required => false, :desc => PRIORITY.keys.to_s
-  def notify
+  def notify(title,msg,priority=0)
+    msg ||= options.message
+    prty ||= options.priority
+    title ||= options.title
     @token = options.token || ENV['PUSHOVER_TOKEN']
     @user = options.user || ENV['PUSHOVER_USER']
     @client = Rushover::Client.new(@token)
     validate_user
-    priority = validate_priority(options.priority)
-    resp = @client.notify(@user, options.message, :priority => PRIORITY[priority], :title => options.title)
+    priority = validate_priority(prty)
+    resp = @client.notify(@user, msg, :priority => PRIORITY[priority], :title => title)
     if resp.ok?
-      puts "(#{priority.upcase}) message sent: #{options.message}" 
+      puts "(#{priority.to_s.upcase}) message sent: #{msg}" 
     else
-      puts "ERROR sending: #{options.message}" 
+      puts "ERROR sending: #{msg}" 
       ap :response => resp, :options => options
     end
   end
