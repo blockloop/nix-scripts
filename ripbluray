@@ -11,7 +11,6 @@ echoerr() { echo "$@" 1>&2; }
 
 test "$1" != "" || usage
 
-EMAIL=bjones027@gmail.com
 WORKING_DIR=/media/Stuff/.ripbluray/
 MOVIE_DIR=/media/Stuff/Movies/
 START=$(date)
@@ -40,7 +39,7 @@ if [ ! $? -eq 0 ]; then
   echoerr "MakeMKV failed. Exiting..."
   if [[ $* != *--no-mail* ]]; then
     echo "Sending email..."
-    sendgmail "Ripping $1 FAILED on MakeMKV" "$EMAIL"
+    sendgmail "Ripping $1 FAILED on MakeMKV" "$USER_EMAIL"
   fi
   exit 1
 fi
@@ -49,7 +48,7 @@ if [ "$RAW_MKV_FILE" == "" ]; then
   echoerr  "MakeMKV didn't produce a file. Exiting..."
   if [[ $* != *--no-mail* ]]; then
     echo "Sending email..."
-    sendgmail "Ripping $1 FAILED on MakeMKV" "$EMAIL"
+    sendgmail "Ripping $1 FAILED on MakeMKV" "$USER_EMAIL"
   fi
   exit 1
 fi
@@ -64,7 +63,7 @@ if [ ! $? -eq 0 ]; then
   echoerr "HandBrake FAILED!"
   if [[ $* != *--no-mail* ]]; then
     echo "Sending email..."
-    sendgmail "Ripping $1 FAILED on HandBrake" "$EMAIL"
+    sendgmail "Ripping $1 FAILED on HandBrake" "$USER_EMAIL"
   fi
   exit 1
 fi
@@ -73,7 +72,7 @@ STOP=$(date)
 
 if [[ $* != *--no-mail* ]]; then
     echo "Sending email..."
-    sendgmail "$0 Finished ripping $1" "Process started at $START and ended at $STOP ." "$EMAIL"
+    sendgmail "$0 Finished ripping $1" "Process started at $START and ended at $STOP ." "$USER_EMAIL"
 fi
 
 echo "Process successfully completed at $STOP"
