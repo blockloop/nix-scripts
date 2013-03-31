@@ -16,7 +16,7 @@ class PushoverMsg < Thor
   method_option :token, :type => :string, :aliases => '-n', :required => ENV['PUSHOVER_TOKEN'].nil?, :desc => "Pushover Token to use (uses ENV['PUSHOVER_TOKEN'] or this)"
   method_option :user, :type => :string, :aliases => '-u', :required => ENV['PUSHOVER_USER'].nil?, :desc => "Pushover user to send to (uses ENV['PUSHOVER_USER'] or this)"
   method_option :priority, :type => :string, :aliases => '-p', :required => false, :desc => PRIORITY.keys.to_s
-  def notify(title,msg,priority=0)
+  def notify(title,msg,priority)
     msg ||= options.message
     priority ||= options.priority
     title ||= options.title

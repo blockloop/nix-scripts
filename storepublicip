@@ -12,4 +12,4 @@ FileUtils.mkdir_p store_file unless File.exist? store_file
 old_ip = File.read(store_file).strip rescue nil
 abort "Nothing new" if old_ip == new_ip
 File.open(store_file, 'w') {|f| f.write(new_ip)}
-PushoverMsg.new.notify("Server IP Changed!", "Old IP: #{old_ip}\nNew IP: #{new_ip}", 1)
+PushoverMsg.new.notify("Server IP Changed!", "Old IP: #{old_ip}\nNew IP: #{new_ip}", 'high')
