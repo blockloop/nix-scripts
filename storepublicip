@@ -1,15 +1,15 @@
-#!/bin/bash
-# relies on sendgmail
+#!/usr/local/bin ruby
 
-user=jones
-newIp=$(wget http://automation.whatismyip.com/n09230945.asp -q -O -)
-oldIp=$(cat /home/$user/Documents/myip)
+require 'httparty'
+require 'fileutils'
+load 'pmsg'
 
-if [ -z "$newIp" ]; then
-   echo "No IP retrieved from whatismyip.com. Ignoring."
-elif [[ -z "$oldIp" || "$newIp" != "$oldIp" ]]; then
-   sendgmail "[IMPORTANT] Server IP Address has changed" "Server IP Address has changed from $oldIp to $newIp" dumbestcrayon@gmail.com
-   echo "$newIp" > /home/$user/Documents/myip
-else
-   echo "IP has not changed"
-fi
+user = 'brett'
+store_file = "/home/#{user}/Documents/myip"
+new_ip = HTTParty.get('http://icanhazip.com').body.strip rescue nil
+abort "Failed retrieving new IP" unless new_ip
+FileUtils.mkdir_p store_file unless File.exist? store_file
+old_ip = File.read(file).strip rescue nil
+abort "Nothing new" if old_ip == new_ip
+File.open(store_file, 'w') {|f| f.write(new_ip)}
+PushoverMsg.new.notify("Server IP Changed!", "New IP: #{new_ip}", 1)

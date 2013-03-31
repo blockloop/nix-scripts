@@ -18,13 +18,13 @@ class PushoverMsg < Thor
   method_option :priority, :type => :string, :aliases => '-p', :required => false, :desc => PRIORITY.keys.to_s
   def notify(title,msg,priority=0)
     msg ||= options.message
-    prty ||= options.priority
+    priority ||= options.priority
     title ||= options.title
     @token = options.token || ENV['PUSHOVER_TOKEN']
     @user = options.user || ENV['PUSHOVER_USER']
     @client = Rushover::Client.new(@token)
     validate_user
-    priority = validate_priority(prty)
+    priority = validate_priority(priority)
     resp = @client.notify(@user, msg, :priority => PRIORITY[priority], :title => title)
     if resp.ok?
       puts "(#{priority.to_s.upcase}) message sent: #{msg}" 

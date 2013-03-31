@@ -13,7 +13,6 @@ data = query['data']
 
 if query['result'] == "success"
   abort "Nothing on today" unless data['today'] and data['today'].any?
-
   message = data['today'].map do |show| 
     "- #{show['show_name']} S#{show['season']}E#{show['episode']} on #{show['network']}" 
   end.join("\n")
