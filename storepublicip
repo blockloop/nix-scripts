@@ -1,4 +1,4 @@
-#!/usr/local/bin ruby
+#!/usr/bin/env ruby
 
 require 'httparty'
 require 'fileutils'
@@ -9,7 +9,7 @@ store_file = "/home/#{user}/Documents/myip"
 new_ip = HTTParty.get('http://icanhazip.com').body.strip rescue nil
 abort "Failed retrieving new IP" unless new_ip
 FileUtils.mkdir_p store_file unless File.exist? store_file
-old_ip = File.read(file).strip rescue nil
+old_ip = File.read(store_file).strip rescue nil
 abort "Nothing new" if old_ip == new_ip
 File.open(store_file, 'w') {|f| f.write(new_ip)}
 PushoverMsg.new.notify("Server IP Changed!", "New IP: #{new_ip}", 1)
