@@ -37,7 +37,7 @@ echo "MakeMKV exited with status $? at $(date)"
 
 if [ ! $? -eq 0 ]; then
   echoerr "MakeMKV failed. Exiting..."
-  if [[ $* != *--no-mail* ]]; then
+  if [[ $* != *--no-msg* ]]; then
     pmsg -t "Ripping $1 FAILED on MakeMKV" -m "Check log for details" -p "high"
   fi
   exit 1
@@ -45,7 +45,7 @@ fi
 
 if [ "$RAW_MKV_FILE" == "" ]; then
   echoerr  "MakeMKV didn't produce a file. Exiting..."
-  if [[ $* != *--no-mail* ]]; then
+  if [[ $* != *--no-msg* ]]; then
     pmsg -t "Ripping $1 FAILED on MakeMKV" -m "Check log for details" -p "high"
   fi
   exit 1
@@ -59,7 +59,7 @@ HandBrakeCLI --min-duration 240 --main-feature --arate 48 --aencoder copy:dts,co
 
 if [ ! $? -eq 0 ]; then
   echoerr "HandBrake FAILED!"
-  if [[ $* != *--no-mail* ]]; then
+  if [[ $* != *--no-msg* ]]; then
     pmsg -t "Ripping $1 FAILED on HandBrake" -m "Check log for details" -p "high"
   fi
   exit 1
@@ -67,7 +67,7 @@ fi
 
 STOP=$(date)
 
-if [[ $* != *--no-mail* ]]; then
+if [[ $* != *--no-msg* ]]; then
     pmsg -t "$0 Finished ripping $1" -m "Process started at $START and ended at $STOP ." -p "high"
 fi
 
