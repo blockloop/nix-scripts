@@ -2,7 +2,13 @@
 
 require 'httparty'
 require 'ostruct'
-load 'pmsg'
+load File.join(File.expand_path(File.dirname(__FILE__)), 'pmsg')
+
+
+def format_time t
+  time = Time.parse(t) - (1*60*60) # minus one hour because SB doesn't handle timezones
+  time.strftime("%l:%M%P").strip
+end
 
 token = ENV['SICKBEARD_API_TOKEN']
 abort "ENV['SICKBEARD_API_TOKEN'] isn't set" unless token
@@ -14,7 +20,7 @@ data = query['data']
 if query['result'] == "success"
   abort "Nothing on today" unless data['today'] and data['today'].any?
   message = data['today'].map do |show| 
-    time = show['airs'].match(/\d+\:\d+\s*(AM|PM)/) rescue ""
+    time = format_time(show['airs'].match(/\d+\:\d+\s*(AM|PM)/).to_s)
     "- #{show['show_name']} S#{show['season']}E#{show['episode']} at #{time} on #{show['network']}" 
   end.join("\n")
 else
