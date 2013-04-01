@@ -12,20 +12,17 @@ end
 
 token = ENV['SICKBEARD_API_TOKEN']
 abort "ENV['SICKBEARD_API_TOKEN'] isn't set" unless token
-message=nil
 url = "http://bmjones.com:8082/api/#{token}/?cmd=future&sort=date&type=today"
 query = HTTParty.get(url).parsed_response
 data = query['data']
 
-if query['result'] == "success"
-  abort "Nothing on today" unless data['today'] and data['today'].any?
-  message = data['today'].map do |show| 
-    time = format_time(show['airs'].match(/\d+\:\d+\s*(AM|PM)/).to_s)
-    "- #{show['show_name']} S#{show['season']}E#{show['episode']} at #{time} on #{show['network']}" 
-  end.join("\n")
-else
-  message = "tvpushover failed calling SickBeard API with message: #{data['message']}"
-  exit 1
-end
+abort "FAILED calling SickBeard API => #{data['message']}" unless query['result'] == "success"
+abort unless data['today'] and data['today'].any? # Nothing on today
 
-PushoverMsg.new.notify("New shows today", message) if message
+message = data['today'].map do |item| 
+	show = OpenStruct.new item
+	show.airs = format_time(show.airs.match(/\d+\:\d+\s*(AM|PM)/).to_s)
+	"- #{show.show_name} S#{show.season}E#{show.episode} at #{show.airs} on #{show.network}" 
+end.join("\n")
+
+PushoverMsg.new.notify("New shows today", message)
