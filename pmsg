@@ -16,18 +16,18 @@ class PushoverMsg < Thor
   method_option :token, :type => :string, :aliases => '-n', :required => ENV['PUSHOVER_TOKEN'].nil?, :desc => "Pushover Token to use (uses ENV['PUSHOVER_TOKEN'] or this)"
   method_option :user, :type => :string, :aliases => '-u', :required => ENV['PUSHOVER_USER'].nil?, :desc => "Pushover user to send to (uses ENV['PUSHOVER_USER'] or this)"
   method_option :priority, :type => :string, :aliases => '-p', :required => false, :desc => PRIORITY.keys.to_s
-  def notify(title=nil,msg=nil,priority=nil)
+  def notify(title=nil,msg=nil,priority_str=nil)
     msg ||= options.message
-    priority ||= options.priority
+    priority_str ||= options.priority
     title ||= options.title
     @token = options.token || ENV['PUSHOVER_TOKEN']
     @user = options.user || ENV['PUSHOVER_USER']
     @client = Rushover::Client.new(@token)
     validate_user
-    priority = validate_priority(priority)
+    priority = PRIORITY[priority_str] || PRIORITY['normal']
     resp = @client.notify(@user, msg, :priority => PRIORITY[priority], :title => title)
     if resp.ok?
-      puts "(#{priority.to_s.upcase}) message sent: #{msg}" 
+      puts "(#{priority_str.upcase}) message sent: #{msg}" 
     else
       puts "ERROR sending: #{msg}" 
       ap :response => resp, :options => options
@@ -37,10 +37,6 @@ class PushoverMsg < Thor
   no_tasks do
     def validate_user
       raise ArgumentError,"Invalid User #{@user}" unless @client.validate!(@user)
-    end
-
-    def validate_priority priority
-      PRIORITY[priority].nil? ? PRIORITY['normal'] : priority
     end
   end
 
