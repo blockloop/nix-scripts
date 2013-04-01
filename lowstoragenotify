@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-load 'pmsg'
+load File.join(File.expand_path(File.dirname(__FILE__)), 'pmsg')
 
 size_in_m = `df -m /dev/sda1`.split(/\b/)[24].to_f rescue nil
 abort "Couldn't check memory" unless size_in_m

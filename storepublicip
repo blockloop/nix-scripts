@@ -2,7 +2,7 @@
 
 require 'httparty'
 require 'fileutils'
-load 'pmsg'
+load File.join(File.expand_path(File.dirname(__FILE__)), 'pmsg')
 
 user = 'brett'
 store_file = "/home/#{user}/Documents/myip"
