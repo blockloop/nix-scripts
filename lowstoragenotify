@@ -4,5 +4,5 @@ load File.join(File.expand_path(File.dirname(__FILE__)), 'pmsg')
 
 size_in_m = `df -m /dev/sda1`.split(/\b/)[24].to_f rescue nil
 abort "Couldn't check memory" unless size_in_m
-abort '' unless size_in_m < 1200
+abort unless size_in_m < 1200
 PushoverMsg.new.notify("Server Storage LOW!", "#{size_in_m}M remaining", 'high')
