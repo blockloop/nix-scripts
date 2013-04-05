@@ -18,7 +18,7 @@ query = HTTParty.get(url).parsed_response
 data = query['data']
 
 abort "FAILED calling SickBeard API => #{data['message']}" unless query['result'] == "success"
-abort unless data['today'] and data['today'].any? # Nothing on today
+exit 0 unless data['today'] and data['today'].any? # Nothing on today
 
 message = data['today'].map do |item| 
 	show = OpenStruct.new item
