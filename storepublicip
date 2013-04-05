@@ -4,12 +4,17 @@ require 'httparty'
 require 'fileutils'
 load File.join(File.expand_path(File.dirname(__FILE__)), 'pmsg')
 
+def quit msg
+  puts msg
+  exit 0
+end
+
 user = 'brett'
 store_file = "/home/#{user}/Documents/myip"
 new_ip = HTTParty.get('http://icanhazip.com').body.strip rescue nil
 abort "Failed retrieving new IP" unless new_ip
 FileUtils.mkdir_p store_file unless File.exist? store_file
 old_ip = File.read(store_file).strip rescue nil
-abort "Nothing new" if old_ip == new_ip
+quit "Nothing new" if old_ip == new_ip
 File.open(store_file, 'w') {|f| f.write(new_ip)}
 PushoverMsg.new.notify("Server IP Changed!", "Old IP: #{old_ip}\nNew IP: #{new_ip}", 'high')

@@ -17,7 +17,7 @@ end
 def usage
   msg = <<EOF
 Usage: 
-    #{__FILE__} Input.Movie.iso /output/dir/
+    #{File.basename __FILE__} Input.Movie.iso /output/dir/Output.Movie.mkv
 EOF
   msg
 end
@@ -26,13 +26,14 @@ abort usage unless ARGV[0] and ARGV[1]
 
 mount_location = '/mnt/iso'
 input_file = File.expand_path ARGV[0]
-output_dir = File.expand_path ARGV[1]
-abort "File does not exist #{input_file}" unless File.exist? input_file
-abort "Output dir does not exist #{output_dir}" unless File.exist? output_dir
-abort "Input must be an iso input_file" unless File.extname(input_file) == ".iso"
-input_file_basename = File.basename(input_file, ".*")
-output_file = "#{output_dir}/#{input_file_basename}.mkv"
+output_file = File.expand_path ARGV[1]
+output_file = "#{output_file}.mkv" unless output_file.end_with? ".mkv"
 
+abort "File does not exist #{input_file}" unless File.exist? input_file
+abort "Output file exist #{output_file}" if File.exist? output_file
+abort "Input must be an iso #{input_file}" unless File.extname(input_file) == ".iso"
+
+input_file_basename = File.basename(input_file, ".*")
 
 mount_cmd = "sudo mount -o loop '#{input_file}' '#{mount_location}'"
 umount_cmd = "sudo umount '#{mount_location}'"
@@ -41,7 +42,7 @@ convert_cmd = "HandBrakeCLI --min-duration 240 --main-feature --arate 48 --aenco
 log "Trying to mount the iso to #{mount_location}"
 if not sh(mount_cmd)
     log "Unable to mount to to #{mount_location}"
-    log "Trying to unmount first..."
+    log "Trying to unmount first"
     if sh(umount_cmd)
         log "Unmount successful. Trying to mount again"
         abort "Unable to mount to #{mount_location}" unless sh(mount_cmd)
@@ -59,13 +60,14 @@ else
     msg = "Failed converting #{input_file_basename}. Check the log for details."
     priority = 'high'
 end
+log "unable to unmount #{mount_location}. Try manually." unless sh(umount_cmd)
 
 log title
 elapsed = (Time.now - start_time).to_i
 secs = elapsed % 60
 mins = elapsed / 60
 hours = mins / 60
-msg = "#{msg}. Process took #{hours}H #{mins}M #{secs}S"
+msg = "#{msg}. Process took #{hours}h#{mins}m#{secs}s"
 PushoverMsg.new.notify(title, msg, priority)
 
 
