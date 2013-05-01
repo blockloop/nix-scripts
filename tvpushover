@@ -19,11 +19,13 @@ data = query['data']
 
 abort "FAILED calling SickBeard API => #{data['message']}" unless query['result'] == "success"
 exit 0 unless data['today'] and data['today'].any? # Nothing on today
+new_count = data['today'].count
 
 message = data['today'].map do |item| 
-	show = OpenStruct.new item
-	show.airs = format_time(show.airs.match(/\d+\:\d+\s*(AM|PM)/).to_s)
-	"- #{show.show_name} S#{show.season}E#{show.episode} at #{show.airs} on #{show.network}" 
+    show = OpenStruct.new item
+    show.airs = format_time(show.airs.match(/\d+\:\d+\s*(AM|PM)/).to_s)
+    "- #{show.show_name} S#{show.season}E#{show.episode} at #{show.airs} on #{show.network}" 
 end.join("\n")
 
-PushoverMsg.new.notify("New shows today", message)
+PushoverMsg.new.notify("#{new_count} new show(s) today", message)
+

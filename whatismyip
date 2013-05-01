@@ -1,0 +1,6 @@
+#!/bin/bash
+
+extIP=$(cat /home/brett/Documents/myip)
+intIP=$(ifconfig | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ print $1}')
+echo "External IP Address:" $extIP
+echo "Internal IP Address:" $intIP
