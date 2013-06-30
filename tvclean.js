@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-var futil = require('fsutil')
+var fsutil = require('fsutil')
 	, fs = require('fs')
 	, util = require('util')
 	, YAML = require('js-yaml')
@@ -15,24 +15,29 @@ var futil = require('fsutil')
 
 program
 	.version('0.0.1')
-	.option('-m, --message [msg]','Message to send')
+	.option('-l, --list',"List deletions, but don't delete")
 	.parse(process.argv);
 
 var app = {
 	clean: function () {
 		process.chdir(config.tv_dir);
 		showsToWork = scrape();
-		console.log(showsToWork);
-		//_.forEach(showsToWork, function (show) {
-			//var toDel = getDeletions(show);
-		//});
+		_.each(showsToWork, function (show) {
+			var toDel = getDeletions(show);
+			if (_.isEmpty(toDel)) return true; // continue
+			console.log('%s extra episodes of %s',toDel.length,show.name);
+			if (options.test) return true; // continue
+			_.each(toDel, function (episode) {
+				fsutil.rm(episode.fullpath);
+			});
+		});
 	}
 }
 
 var scrape = function () {
 	var shows = filtered = glob.sync('*');
 
-	_.forEach(config.ignores, function (ignore) {
+	_.each(config.ignores, function (ignore) {
 		var regex = new RegExp(ignore,'i');
 		filtered = _.reject(filtered, function (item) {
 			return regex.test(item);
@@ -59,8 +64,14 @@ var scrape = function () {
 	});
 }
 
-var getDeletions = function (show) {
-	
+var getDeletions = function (tvshow) {
+	var episodes = _.map(tvshow.videoFiles, function (episode){
+		return new Episode(episode, tvshow);
+	});
+	episodes = _.sortBy(episodes, function (ep) {
+		return -_.parseInt("".concat(ep.season,ep.episode));
+	});
+	return _.tail(episodes, 5);
 }
 
 var chdir = function (dir, fn) {
@@ -70,6 +81,24 @@ var chdir = function (dir, fn) {
 	process.chdir(start);
 }
 
+
+var Episode = function (fullpath, tvshow) {
+	var isValid = true;
+	if (!/[Ss]\d{1,2}[Ee]\d{1,2}/i.test(fullpath)) {
+		process.stderr(fullpath+" isn't named properly");
+		isValid = false;
+	}
+	var season = _.parseInt(PATH.basename(fullpath).match(/([Ss])(\d{1,2})/)[2]);
+	var episode = _.parseInt(PATH.basename(fullpath).match(/([Ee])(\d{1,2})/, 2)[2]);
+
+	return {
+		fullpath: tvshow.fullpath+'/'+fullpath,
+		tvshow: tvshow.name,
+		season: season,
+		episode: episode,
+		isValid: isValid
+	};
+}
 
 
 
