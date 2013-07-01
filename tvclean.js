@@ -3,35 +3,33 @@
 var fsutil = require('fsutil')
 	, fs = require('fs')
 	, util = require('util')
-	, YAML = require('js-yaml')
-	, Utils = require('./utils')
+	, yaml = require('js-yaml')
+	, utils = require('./utils')
 	, system = require('exec-sync')
 	, program = options = require('commander')
 	, _ = require('lodash')
-	, config = require(Utils.userHome()+"/tvclean_config.yml")
+	, path = require('path')
 	, glob = require('glob')
-	, PATH = require('path');
+	, config;
  
+CONFIG_FILE = path.join(utils.userHome(), "tvclean_config.yml");
 
 program
 	.version('0.0.1')
 	.option('-l, --list',"List deletions, but don't delete")
 	.parse(process.argv);
 
-var app = {
-	clean: function () {
-		process.chdir(config.tv_dir);
-		showsToWork = scrape();
-		_.each(showsToWork, function (show) {
-			var toDel = getDeletions(show);
-			if (_.isEmpty(toDel)) return true; // continue
-			console.log('%s extra episodes of %s',toDel.length,show.name);
-			if (options.test) return true; // continue
-			_.each(toDel, function (episode) {
-				fsutil.rm(episode.fullpath);
-			});
+var clean = function () {
+	process.chdir(config.tv_dir);
+	_.each(scrape(), function (show) {
+		var toDel = getDeletions(show);
+		if (_.isEmpty(toDel)) return true; // continue
+		console.log('%s extra episodes of %s', toDel.length, show.name);
+		if (options.list) return true; // continue
+		_.each(toDel, function (episode) {
+			fsutil.rm(episode.fullpath);
 		});
-	}
+	});
 }
 
 var scrape = function () {
@@ -46,17 +44,17 @@ var scrape = function () {
 
 	return _.map(filtered, function (show) {
 		var result;
-		show = PATH.resolve(show);
+		show = path.resolve(show);
 		chdir(show, function () {
 			var videoFiles = glob.sync('**');
 			videoFiles = _.reject(videoFiles, function (file) {
-				if (!Utils.isFile(file)) return true;
-				return Utils.fileSize(file) < (config.min_media_size*1024*1024);
+				if (!utils.isFile(file)) return true;
+				return utils.fileSize(file) < (config.min_media_size*1024*1024);
 			});
 
 			result = {
 				fullpath: show,
-				name: PATH.basename(show),
+				name: path.basename(show),
 				videoFiles: videoFiles
 			};
 		});
@@ -88,11 +86,11 @@ var Episode = function (fullpath, tvshow) {
 		process.stderr(fullpath+" isn't named properly");
 		isValid = false;
 	}
-	var season = _.parseInt(PATH.basename(fullpath).match(/([Ss])(\d{1,2})/)[2]);
-	var episode = _.parseInt(PATH.basename(fullpath).match(/([Ee])(\d{1,2})/, 2)[2]);
+	var season = _.parseInt(path.basename(fullpath).match(/([Ss])(\d{1,2})/)[2]);
+	var episode = _.parseInt(path.basename(fullpath).match(/([Ee])(\d{1,2})/, 2)[2]);
 
 	return {
-		fullpath: tvshow.fullpath+'/'+fullpath,
+		fullpath: path.join(tvshow.fullpath,fullpath),
 		tvshow: tvshow.name,
 		season: season,
 		episode: episode,
@@ -100,7 +98,34 @@ var Episode = function (fullpath, tvshow) {
 	};
 }
 
+var createConfig = function () {
+	var contents = [
+		"# Working directory",
+		"tv_dir: '/path/to/tv shows'",
+		"",
+		"# The maximum amount of episodes to retain per show",
+		"episodes_limit: 5",
+		"",
+		"# The minimum size in MB of files to consider",
+		"min_media_size: 100",
+		"",
+		"# TV Shows to Ignore",
+		"# these are regular expressions",
+		"ignores:",
+		"  - 'walking.*dead'",
+		"  - 'vikings'"].join("\n");
 
+	fs.writeFileSync(CONFIG_FILE, contents);
+}
+
+// load config
+try {
+	config = require(CONFIG_FILE);
+} catch (e) {
+	createConfig();
+	throw 'Configuration is required. Modify ' + CONFIG_FILE + ' to configure';
+} 
 
 // run
-app.clean();
+clean();
+
