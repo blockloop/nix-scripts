@@ -1,163 +1,131 @@
-#!/usr/bin/env ruby
+#!/usr/bin/env node
 
-require 'rubygems'
-require 'fileutils'
-require 'thor'
-require 'yaml'
-require 'ostruct'
+var fsutil = require('fsutil')
+	, fs = require('fs')
+	, util = require('util')
+	, yaml = require('js-yaml')
+	, utils = require('./utils')
+	, system = require('exec-sync')
+	, program = options = require('commander')
+	, _ = require('lodash')
+	, path = require('path')
+	, glob = require('glob')
+	, config;
+ 
+CONFIG_FILE = path.join(utils.userHome(), "tvclean_config.yml");
 
-class TvClean < Thor
-  include Thor::Actions
+program
+	.version('0.0.1')
+	.option('-l, --list',"List deletions, but don't delete")
+	.parse(process.argv);
 
-  # --------------------------------------------------------------------------
-  def initialize(*args)
-    super
-    $config_file = "#{Dir.home}/tvclean_config.yml"
-    configure unless read_config?
-    verify_config
-  end
+var clean = function () {
+	process.chdir(config.tv_dir);
+	_.each(scrape(), function (show) {
+		var toDel = getDeletions(show);
+		if (_.isEmpty(toDel)) return true; // continue
+		console.log('%s extra episodes of %s', toDel.length, show.name);
+		if (options.list) return true; // continue
+		_.each(toDel, function (episode) {
+			fsutil.rm(episode.fullpath);
+		});
+	});
+}
 
-  # --------------------------------------------------------------------------
-  desc "configure", "Set up tvclean", :hide => true
-  def configure
-    puts "To configure this application modify #{$config_file}"
-    exit 1
-    # prompt(nil, "Please provide the directory where your TV shows reside:")
-  end
+var scrape = function () {
+	var shows = filtered = glob.sync('*');
 
-  # --------------------------------------------------------------------------
-  desc "clean", "cleans the directory"
-  method_option :test, :type => :boolean, :default => false, :aliases => "-t", :desc => "Display extra episodes, does NOT delete"
-  def clean
-    shows_to_work = scrape
-    exit_with_message("Everything is clean") if shows_to_work.empty?
-    shows_to_work.each do |show|
-      to_delete = get_deletions(show)
-      puts "#{to_delete.count} extra episode(s) of #{show.name}"
-      exit 0 if to_delete.empty?
-      unless options.test 
-        to_delete.each { |show| File.delete(show.fullpath) }
-      end
-    end
-  end
-  
-  desc "list", "lists tv shows and their episode count"
-  def list
-    items = scrape(true).sort{|x,y| y.video_files.count <=> x.video_files.count}.each do |tv|
-      puts "#{tv.name}: #{tv.video_files.count}"
-    end
-  end
+	_.each(config.ignores, function (ignore) {
+		var regex = new RegExp(ignore,'i');
+		filtered = _.reject(filtered, function (item) {
+			return regex.test(item);
+		});
+	});
 
-  no_tasks do
-    # --------------------------------------------------------------------------
-    def verify_config
-      exit_with_message("Directory does not exist: #{$tv_dir}",1) unless Dir.exists?($tv_dir)
-    end
+	return _.map(filtered, function (show) {
+		var result;
+		show = path.resolve(show);
+		chdir(show, function () {
+			var videoFiles = glob.sync('**');
+			videoFiles = _.reject(videoFiles, function (file) {
+				if (!utils.isFile(file)) return true;
+				return utils.fileSize(file) < (config.min_media_size*1024*1024);
+			});
 
-    # --------------------------------------------------------------------------
-    def exit_with_message(message,status=0)
-      puts message
-      exit status
-    end
+			result = {
+				fullpath: show,
+				name: path.basename(show),
+				videoFiles: videoFiles
+			};
+		});
+		return result;
+	});
+}
 
-    # --------------------------------------------------------------------------
-    def read_config?
-      return false unless File.exists?($config_file)
-      config = YAML.load_file($config_file)
-      config.each { |key, value| eval("$#{key} = #{value.is_a?(String) ? 'value' : value}") }
-      $configured # this is set in the config file
-    end
+var getDeletions = function (tvshow) {
+	var episodes = _.map(tvshow.videoFiles, function (episode){
+		return new Episode(episode, tvshow);
+	});
+	episodes = _.sortBy(episodes, function (ep) {
+		return -_.parseInt("".concat(ep.season,ep.episode));
+	});
+	return _.tail(episodes, 5);
+}
 
-    # --------------------------------------------------------------------------
-    def prompt(default, question)
-      ask question || default
-    end
-    
-    # --------------------------------------------------------------------------
-    def scrape unfiltered=false
-      Dir.chdir $tv_dir
-      all = Dir['**']
-
-      unless unfiltered
-        $ignores.each do |exp|
-          all.delete_if { |n| n =~ exp }
-        end
-      end
-
-      to_work = Array.new
-      all.each do |n|
-        fullpath = File.expand_path(n)
-        next unless File.directory?(fullpath)
-        Dir.chdir fullpath do
-          video_files = Dir['**/*'].select { |f|
-            # is a file and is > min_media_size
-            File.file?(f) and (('%.2f' % File.size(f)).to_i / 2**20) > $min_media_size
-          }.map{ |v| File.expand_path(v) }
-          to_work.push(TvShow.new(fullpath, video_files)) if (video_files.count > $episodes_limit) or unfiltered
-        end
-      end
-
-      to_work
-    end
-
-    # --------------------------------------------------------------------------
-    def get_deletions(tvshow)
-      raise ArgumentError, "Not a TvShow" unless tvshow.is_a?(TvShow)
-      episodes = tvshow.video_files.map{ |file| Episode.new(file, tvshow) }.delete_if{ |e| not e.valid? }
-      episodes.sort_by! { |a| [-a.season, -a.episode] }
-      keepers = episodes[0..4]
-      to_delete = episodes - keepers
-      to_delete
-    end
-
-    default_task :start
-  end
-end
+var chdir = function (dir, fn) {
+	var start = process.cwd();
+	process.chdir(dir);
+	fn();
+	process.chdir(start);
+}
 
 
-# --------------------------------------------------------------------------
-class TvShow
-  def initialize(fullpath, video_files)
-    raise ArgumentError, "fullpath must be a String" unless fullpath.is_a?(String)
-    raise ArgumentError, "video_files must be an array" unless video_files.is_a?(Array)
+var Episode = function (fullpath, tvshow) {
+	var isValid = true;
+	if (!/[Ss]\d{1,2}[Ee]\d{1,2}/i.test(fullpath)) {
+		process.stderr(fullpath+" isn't named properly");
+		isValid = false;
+	}
+	var season = _.parseInt(path.basename(fullpath).match(/([Ss])(\d{1,2})/)[2]);
+	var episode = _.parseInt(path.basename(fullpath).match(/([Ee])(\d{1,2})/, 2)[2]);
 
-    @fullpath = fullpath
-    @name = File.basename(fullpath)
-    @video_files = video_files
-  end
+	return {
+		fullpath: path.join(tvshow.fullpath,fullpath),
+		tvshow: tvshow.name,
+		season: season,
+		episode: episode,
+		isValid: isValid
+	};
+}
 
-  def fullpath; @fullpath end
-  def name; @name end
-  def video_files; @video_files end
-end
+var createConfig = function () {
+	var contents = [
+		"# Working directory",
+		"tv_dir: '/path/to/tv shows'",
+		"",
+		"# The maximum amount of episodes to retain per show",
+		"episodes_limit: 5",
+		"",
+		"# The minimum size in MB of files to consider",
+		"min_media_size: 100",
+		"",
+		"# TV Shows to Ignore",
+		"# these are regular expressions",
+		"ignores:",
+		"  - 'walking.*dead'",
+		"  - 'vikings'"].join("\n");
 
-# --------------------------------------------------------------------------
-class Episode
-  def initialize(fullpath, tvshow)
-    raise ArgumentError, "fullpath must be a String" unless fullpath.is_a?(String)
-    raise ArgumentError, "tvshow must be a TvShow" unless tvshow.is_a?(TvShow)
-    @valid = true
+	fs.writeFileSync(CONFIG_FILE, contents);
+}
 
-    unless File.basename(fullpath) =~ /[Ss]\d{1,2}[Ee]\d{1,2}/
-      puts "fullpath (#{fullpath}) is not named with the proper convention (eg. TV.Show.S01E02 or TV.Show.s1e2)"
-      @valid = false
-    end
+// load config
+try {
+	config = require(CONFIG_FILE);
+} catch (e) {
+	createConfig();
+	throw 'Configuration is required. Modify ' + CONFIG_FILE + ' to configure';
+} 
 
-    @fullpath = fullpath
-    @tvshow = tvshow
-    @season = File.basename(fullpath)[/([Ss])(\d{1,2})/, 2].to_i
-    @episode = File.basename(fullpath)[/([Ee])(\d{1,2})/, 2].to_i
-  end
+// run
+clean();
 
-  def fullpath; @fullpath end
-  def tvshow; @tvshow end
-  def season; @season end
-  def episode; @episode end
-  def valid?; @valid end
-end
-
-# Starts the process if this is being used as a script
-# If this is being used as a library this will be skipped
-if __FILE__ == $0
-  TvClean.start
-end
