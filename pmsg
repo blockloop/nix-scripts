@@ -1,51 +1,56 @@
-#!/usr/bin/env ruby
+#!/usr/bin/env node
 
-require "net/https"
-require "thor"
-require 'ostruct'
-require 'rushover'
-require 'awesome_print'
+var utils = require('./utils')
+  , push = require('pushover-notifications')
+  , system = require('exec-sync')
+  , program = require('commander')
+  , opts = program;
 
-class PushoverMsg < Thor
+var p = new push({
+	user: process.env["PUSHOVER_USER"],
+	token: process.env["PUSHOVER_TOKEN"]
+});
 
-  PRIORITY = { 'low' => -1, 'normal' => 0, 'high' => 1 }
-  
-  desc "notify", "send a pushover message"
-  method_option :message, :type => :string, :aliases => '-m', :required => true, :desc => "Send a pushover message"
-  method_option :title, :type => :string, :aliases => '-t', :required => false, :desc => "The title of the message"
-  method_option :token, :type => :string, :aliases => '-n', :required => ENV['PUSHOVER_TOKEN'].nil?, :desc => "Pushover Token to use (uses ENV['PUSHOVER_TOKEN'] or this)"
-  method_option :user, :type => :string, :aliases => '-u', :required => ENV['PUSHOVER_USER'].nil?, :desc => "Pushover user to send to (uses ENV['PUSHOVER_USER'] or this)"
-  method_option :priority, :type => :string, :aliases => '-p', :required => false, :desc => PRIORITY.keys.to_s
-  def notify(title=nil,msg=nil,priority_str=nil)
-    msg ||= options.message
-    priority_str ||= options.priority || 'normal'
-    title ||= options.title
-    @token = options.token || ENV['PUSHOVER_TOKEN']
-    @user = options.user || ENV['PUSHOVER_USER']
-    @client = Rushover::Client.new(@token)
-    validate_user
-    priority = PRIORITY[priority_str] || PRIORITY['normal']
-    resp = @client.notify(@user, msg, :priority => PRIORITY[priority], :title => title)
-    if resp.ok?
-      puts "(#{priority_str.upcase}) message sent: #{msg}" 
-    else
-      puts "ERROR sending: #{msg}" 
-      ap :response => resp, :options => options
-    end
-  end
+PRIORITY = {
+	low: -1,
+	normal: 0,
+	high: 1
+};
 
-  no_tasks do
-    def validate_user
-      raise ArgumentError,"Invalid User #{@user}" unless @client.validate!(@user)
-    end
-  end
+program.version('0.0.1')
+  .option('-m, --message [msg]', 'Message to send')
+  .option('-t, --title [title]', 'Title of the message')
+  .option('-n, --token [token]', 'Pushover Token to use (uses ENV["PUSHOVER_TOKEN"] or this)')
+  .option('-u, --user [user]', 'Pushover user to send to (uses ENV["PUSHOVER_USER"] or this)')
+  .option('-p, --priority [priority]', PRIORITY.keys())
+  .parse(process.argv);
 
-  default_task :notify
-end
 
-# Starts the process if this is being used as a script
-# If this is being used as a library this will be skipped
-if __FILE__ == $0
-  PushoverMsg.start
-end
+var notify = function(title, msg, priority_str, token, user) {
+	title = title || opts.title;
+	msg = msg || opts.message;
+	priority_str = priority_str || opts.priority || 'normal';
+	p.token = p.token || token || opts.token;
+	p.user = p.user || user || opts.user;
+	if (!p.token) {
+		throw 'Either pass token or set ENV["PUSHOVER_TOKEN"]';
+	}
+	if (!p.user) {
+		throw 'Either pass user or set ENV["PUSHOVER_USER"]';
+	}
+	var msg = {
+		title: title,
+		message: msg,
+		priority: PRIORITY[priority_str]
+	};
+	return p.send(msg, function(err, result) {
+		if (err) {
+			throw err;
+		}
+		return console.log(result);
+	});
+}
+
+// run
+notify();
 
